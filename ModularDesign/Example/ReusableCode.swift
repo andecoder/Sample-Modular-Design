@@ -7,6 +7,17 @@
 
 import Foundation
 
+protocol CacheReaderType {
+    func get<Model: Decodable>() -> Model?
+}
+
+class CacheReader: CacheReaderType {
+
+    func get<Model>() -> Model? where Model : Decodable {
+        return nil
+    }
+}
+
 protocol CacheWriterType {
     func cache<Model: Encodable>(_: Model)
 }

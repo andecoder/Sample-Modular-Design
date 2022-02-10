@@ -7,7 +7,28 @@
 
 import Foundation
 
-class MOrderRepository: OrderRepositoryType {
+class MLocalOrderRepository: OrderRepositoryType {
+
+    enum Error: Swift.Error {
+        case missingFile
+    }
+
+    private let cacheReader: CacheReaderType
+
+    init(cacheReader: CacheReaderType) {
+        self.cacheReader = cacheReader
+    }
+
+    func fetchAll(completion: @escaping (Result<[Order], Swift.Error>) -> Void) {
+        if let orders: [Order] = cacheReader.get() {
+            completion(.success(orders))
+        } else {
+            completion(.failure(Error.missingFile))
+        }
+    }
+}
+
+class MRemoteOrderRepository: OrderRepositoryType {
 
     private let httpClient: HTTPClientType
     private let url: URL
@@ -47,12 +68,38 @@ class MOrderRepositoryCacheDecorator: OrderRepositoryType {
     }
 }
 
+class MOrderRepositoryComposite: OrderRepositoryType {
+
+    private let primary: OrderRepositoryType
+    private let fallback: OrderRepositoryType
+
+    init(primary: OrderRepositoryType, fallback: OrderRepositoryType) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    func fetchAll(completion: @escaping (Result<[Order], Error>) -> Void) {
+        primary.fetchAll { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success:
+                completion(result)
+            case .failure:
+                self.fallback.fetchAll(completion: completion)
+            }
+        }
+    }
+}
+
 // USAGE
 
-let modular = MOrderRepositoryCacheDecorator(
-    cacheWriter: CacheWriter(),
-    decoratee: MOrderRepository(
-        httpClient: HTTPClient(),
-        url: URL(string: "www.costa.co.uk")!
+let modular = MOrderRepositoryComposite(
+    primary: MLocalOrderRepository(cacheReader: CacheReader()),
+    fallback: MOrderRepositoryCacheDecorator(
+        cacheWriter: CacheWriter(),
+        decoratee: MRemoteOrderRepository(
+            httpClient: HTTPClient(),
+            url: URL(string: "www.costa.co.uk")!
+        )
     )
 )
