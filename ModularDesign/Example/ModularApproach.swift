@@ -22,9 +22,37 @@ class MOrderRepository: OrderRepositoryType {
     }
 }
 
+class MOrderRepositoryCacheDecorator: OrderRepositoryType {
+
+    private let cacheWriter: CacheWriterType
+    private let decoratee: OrderRepositoryType
+
+    init(cacheWriter: CacheWriterType, decoratee: OrderRepositoryType) {
+        self.cacheWriter = cacheWriter
+        self.decoratee = decoratee
+    }
+
+    func fetchAll(completion: @escaping (Result<[Order], Error>) -> Void) {
+        decoratee.fetchAll { [weak self] result in
+            guard let self = self else { return }
+            self.cacheIfPossible(result)
+            completion(result)
+        }
+    }
+
+    private func cacheIfPossible(_ result: Result<[Order], Error>) {
+        if case let .success(orders) = result {
+            cacheWriter.cache(orders)
+        }
+    }
+}
+
 // USAGE
 
-let modular = MOrderRepository(
-    httpClient: HTTPClient(),
-    url: URL(string: "www.costa.co.uk")!
+let modular = MOrderRepositoryCacheDecorator(
+    cacheWriter: CacheWriter(),
+    decoratee: MOrderRepository(
+        httpClient: HTTPClient(),
+        url: URL(string: "www.costa.co.uk")!
+    )
 )

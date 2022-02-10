@@ -7,8 +7,17 @@
 
 import Foundation
 
+protocol CacheWriterType {
+    func cache<Model: Encodable>(_: Model)
+}
+
+class CacheWriter: CacheWriterType {
+
+    func cache<Model>(_: Model) where Model : Encodable { }
+}
+
 protocol HTTPClientType {
-    func fetch<Model: Codable>(from: URL, completion: @escaping (Result<Model, Error>) -> Void)
+    func fetch<Model: Decodable>(from: URL, completion: @escaping (Result<Model, Error>) -> Void)
 }
 
 class HTTPClient: HTTPClientType {
