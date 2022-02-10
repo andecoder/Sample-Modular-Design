@@ -94,12 +94,12 @@ class MOrderRepositoryComposite: OrderRepositoryType {
 // USAGE
 
 let modular = MOrderRepositoryComposite(
-    primary: MLocalOrderRepository(cacheReader: CacheReader()),
-    fallback: MOrderRepositoryCacheDecorator(
+    primary: MOrderRepositoryCacheDecorator(
         cacheWriter: CacheWriter(),
         decoratee: MRemoteOrderRepository(
             httpClient: HTTPClient(),
             url: URL(string: "www.costa.co.uk")!
         )
-    )
+    ),
+    fallback: MLocalOrderRepository(cacheReader: CacheReader())
 )

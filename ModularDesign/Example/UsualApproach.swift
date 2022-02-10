@@ -22,20 +22,16 @@ class OrderRepository: OrderRepositoryType {
     }
 
     func fetchAll(completion: @escaping (Result<[Order], Error>) -> Void) {
-        if let orders: [Order] = cacheReader.get() {
-            return completion(.success(orders))
-        }
-
         httpClient.fetch(from: url) { [weak self] (result: Result<[Order], Error>) in
             guard let self = self else { return }
-            self.cacheIfPossible(result)
-            completion(result)
-        }
-    }
-
-    private func cacheIfPossible(_ result: Result<[Order], Error>) {
-        if case let .success(orders) = result {
-            cacheWriter.cache(orders)
+            if case let .success(orders) = result {
+                self.cacheWriter.cache(orders)
+                completion(result)
+            } else if let orders: [Order] = self.cacheReader.get() {
+                completion(.success(orders))
+            } else {
+                completion(result)
+            }
         }
     }
 }
